@@ -1,4 +1,7 @@
+# livefyre-assets
+
 `livefyre-assets -h`
+
 ```
 Add things to Livefyre Asset Manager. Reads from stdin.
 If successful, returns URL to new Asset in Studio.
@@ -14,4 +17,4 @@ Options:
 Patterns:
   # Create a new asset and open in a web browser
   echo "I am the Content" | livefyre-assets | xargs open
-  ```
+```
