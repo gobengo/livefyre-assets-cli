@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+set -e
+# DEBUG
+# set -x
+
+usage() {
+cat <<-"END"
+Add things to Livefyre Asset Manager. Reads from stdin.
+If successful, returns URL to new Asset in Studio.
+
+Usage:
+  livefyre-assets (--auth=<auth header>)
+
+Options:
+  -h --help           Show this screen.
+  -a --auth           Provide an Authorization header (e.g. "lftoken MY_TOKEN")
+  -n --networkName    networkName (no .fyre.co) of Asset Library to use
+
+Patterns:
+  # Create a new asset and open in a web browser
+  echo "I am the Content" | livefyre-assets | xargs open
+END
+}
+
+# http://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+for i in "$@"
+do
+case $i in
+    -h|--help)
+    usage
+    shift # past argument=value
+    ;;
+    -a=*|--auth=*)
+      Authorization="${i#*=}"
+      shift # past argument=value
+    ;;
+    -n=*|--networkName=*)
+      networkName="${i#*=}"
+      shift # past argument=value
+    ;;
+    *)
+      # unknown option
+    ;;
+esac
+done
+
+networkName=${networkName:-labs-t402}
+network="$networkName.fyre.co"
+origin="https://$networkName.admin.fyre.co"
+api="$origin/services/frontline/api/v4/assetManager/$network/assetLibrary/$network/assets"
+
+if [[ $Authorization == "" ]]; then
+  echo "Provide Authorization"
+  exit 1
+fi
+
+# Read asset text from stdin
+input_txt=$(while read line
+do
+  echo $line
+done < "${hi:-/dev/stdin}"
+)
+
+new_asset='{
+  "add": [
+    {
+      "content": {
+        "attachment": [
+        ],
+        "content": "'$input_txt'"
+      },
+      "generator": "assetManager",
+      "folders": []
+    }
+  ]
+}'
+
+created_asset=$(curl -s -X POST $api \
+-H 'Pragma: no-cache' \
+-H "Origin: $origin" \
+-H 'Accept-Encoding: gzip, deflate' \
+-H 'Content-Type: application/json' \
+-H 'Accept: */*' \
+-H 'Cache-Control: no-cache' \
+-H "Authorization: $Authorization" \
+-H 'Connection: keep-alive' \
+--compressed \
+--data-binary "$new_asset")
+
+created_asset_id=$(echo $created_asset | jq -r '.added[0].content.id')
+asset_url="https://studio.t402.livefyre.com/$network/asset/library/assetManager/$created_asset_id"
+
+echo $asset_url
